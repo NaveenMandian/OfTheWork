@@ -1,0 +1,201 @@
+https://simplifiedcoding.net/demos/marvel/
+
+http://txt2html.sourceforge.net/sample.txt
+
+/metrics-collector:17.0-s51
+^ Login/servers -------------------------------------------------------
+
+Aug -7 -2018 : -------------------------------------------------------------
+
+Hi
+
+Use old jump host details for connecting to terraform.
+
+Jump Host details : 
+vcmtsteam@65.97.0.197
+
+terraform details :-
+ssh -i cc-aws-key.pem ubuntu@54.149.9.188
+
+
+
+^ CloudConnect Necessary
+
+vcmtsteam@65.97.0.197
+s 25 -->  for tbserver
+ssh -i cc-aws-key.pem ubuntu@54.149.9.188  --> it takes to ip-172-31-5-223
+
+ Bridge Server ---> 96.118.155.11 ssh ppk file required
+ From Bridge Server log into Kube-master node 96.112.167.4 [username : ubuntu
+password : c0mcasT-tb&ms^]
+
+^ platform-analytics
+
+^ log into bridge server [ 96.118.155.11 ] using ppk file username : ubuntu
+
+^ From there login to 96.112.167.4 (its is kube-master), instead use 96.112.167.2 username : ubuntu
+   password : c0mcasT-tb&ms^
+
+
+git -c http.sslVerify=false clone https://github.comcast.com/Thunderbolt-Commons/platform-install-ansible.git
+
+git -c http.sslVerify=false clone https://github.comcast.com/Thunderbolt-Platform/platform-analytics.git
+
+git -c http.sslVerify=false clone https://github.comcast.com/Thunderbolt-Platform/platform-install-cloud.git
+:
+
+^ another aws login->>
+
+login to vcmts-team and instead of $s 25 use -> ssh -i cc-aws-key.pem ubuntu@54.149.9.188
+
+-------------------------------------------------####> New Jump host for terraform.
+
+New Jump Host details.
+
+Save the attachment in your local machine and refer this ppk in Putty. Connection -> SSh -> Auth.
+
+Host Name :- ubuntu@96.118.155.11
+Port :22 
+
+After Connecting connect to 96.112.167.2 using below commands.
+
+ssh 96.112.167.2 
+password: c0mcasT-tb&ms^
+
+Connect to terraform using below command.
+
+ssh -i cc-aws-key.pem ubuntu@54.149.9.188
+################################################################################
+################################################################################
+
+
+Create an archive using tar.:
+# tar -cvf archive.tar file1.txt file3.txt
+Here the files file1 and file3 will combine together and formed the file archive.tar, 
+
+you can use the tar command with switch -x to extract file from the archive created.
+# tar -xvf archive.tar
+
+# For gzip
+# tar -zcf file.tar.gz file2.txt file1.txt
+
+For bzip
+## tar -jcf file.tar.bz file2.txt file1.txt
+
+
+
+^ Monitoring Probe  --- after code change building Docker image.
+
+$ sudo kubectl get nodes
+
+$ docker save -o fedora-all.tar fedora
+docker save -o fedora-latest.tar fedora:latest
+docker save --output busybox.tar busybox
+$ sudo docker load --input ~/metrics-collector/metrics_collector.tar
+$ sudo docker tag 151abc45aa3a 96.115.240.58:9001/metrics-collector:17.0-s55
+$ sudo docker images
+$ sudo docker rmi 151abc45aa3a
+
+1. Monitoring Probe Code is present in path /platform-analytics/platform_analytics/prometheus_exporter
+2. Make the changes required and save.
+3. tar the contents in /prometheus_exporter into metrics_collector.tar.gz
+  command - tar -zcvf metrics_collector.tar.gz prometheus_exporter/
+  
+4. copy metrics_collector.tar.gz to /platform-install-cloud/docker/metrics-collector/config
+
+5. docker image will be built in - /platform-install-cloud/docker/metrics-collector
+ with increased version number (version number in available in
+/platform-install-ansible/kubernetes/monitoring-probe/monitoring-probe-ds.yaml file)
+
+Docker Build directory -|
+  /home/cjames003c/github/platform-install-cloud/docker/metrics-collector
+  
+  command - cd /platform-install-cloud/docker/metrics-collector
+  "sudo docker build -t 96.115.240.58:9001/metrics-collector:17.0-s55 . " -------> Remember the dot(.) current directory
+  
+6. Push the docker image(deploy) - check version number
+   command - sudo docker push  96.115.240.58:9001/metrics-collector:17.0-s55
+   
+7. update image and create monitoring-probe
+
+      - name: metrics-collector
+        image: {{ docker_repo }}:{{ docker_repo_port }}/metrics-collector:16.0-s44
+		
+		- Go to /platform-install-ansible/kubernetes/monitoring-probe/monitoring-probe-ds.yaml and update it.
+        
+    Edit these /opt/platform/Cluster1/cppod/kubernetes/monitoring-probe/monitoring-probe-ds.yaml file in master before kubectl create and delete.
+		
+8. kubectl delete -f  - sudo kubectl delete -f monitoring-probe/monitoring-probe-ds.yaml
+
+   kubectl create -f  - sudo kubectl create -f monitoring-probe/monitoring-probe-ds.yaml
+   
+   Run these in /opt/platform/Cluster1/cppod/kubernetes in master
+   
+9. kubectl get pods -o wide   ---------------getting ip and ports(check yaml file) of monitoring probe.
+
+monitoring-probe-ds-dv9m8                         5/5       Running            0          23s       96.112.167.6   96.112.167.6
+monitoring-probe-ds-kw4tc                         4/5       ImagePullBackOff   0          23s       96.112.167.7   96.112.167.7
+monitoring-probe-ds-tlwb9                         4/5       ImagePullBackOff   0          23s       96.112.167.5   96.112.167.5
+
+
+$ curl -H "Content-Type: application/json" --data @~/naveen_b07/body.json 96.112.167.7:9080/onosevents
+
+$ curl -H "Content-Type: application/json" --data @~/naveen_b07/body.json 96.112.167.7:9080/onoseventsack
+
+$ curl -H "Content-Type: application/json" --data @~/naveen_b07/body.json 96.112.167.6:9080/onoseventsack
+
+ubuntu@kube-master-4:/opt/platform/Cluster1/cppod/kubernetes$ curl -H "Content-Type: application/json" --data @~/naveen_b07/body.json 96.112.167.6:9080/onoseventsack
+Warning: Couldn't read data from file "~/naveen_b07/body.json", this makes an
+Warning: empty POST.
+<html><body><h1>Received json data</h1></body></html>ubuntu@kube-master-4:/opt/platform/Cluster1/cppod/kubernetes$
+
+10. kubectl logs <mp> metrics-collector  - logs check.
+
+sudo kubectl logs monitoring-probe-ds-qrb4f metrics-collector 
+
+kubectl logs <mp> metrics-collector | grep "phrase I want to find"
+
+
+curl -H "Content-Type: application/json" --data @body.json http://localhost:8080/ui/webapp/conf
+
+Telemetry-configMap changing Kafka Ip -
+$ sudo kubectl delete -f config-map/telemetry-configmap.yaml
+configmap "telemetry-configmap" deleted
+
+$ sudo kubectl create -f config-map/telemetry-configmap.yaml
+configmap "telemetry-configmap" created
+
+
+   
+Note : FYI --> if you add new variables in restServer_config you also have to update in /platform-install-cloud/docker/metrics-collector/Dockerfile and
+ /platform-install-cloud/docker/metrics-collector/docker-entrypoint.sh
+ 
+ 
+ 
+ -- listing all containers
+ kubectl get --all-namespaces --selector k8s-app=kube-dns --output json pods \
+  | monitoring-probe-ds-9pw84 --raw-output '.items[].spec.containers[].name'
+  
+###### Nexus Pushing
+ 
+sudo docker login 96.115.240.58:9001
+username : tb-platform
+password : nexus@123
+
+# cd /etc/docker/
+root@kube-master-4:/etc/docker# ls
+daemon.json  key.json
+
+Add Nexus Ips even 9001-pushing. in daemon.json
+{ "insecure-registries":["{{ docker_repo }}:{{ docker_repo_port }}", "{{ docker_repo }}:8082", "{{ docker_repo }}:8083", 
+ "96.118.12.219:8082", "96.118.12.219:8083", "96.118.12.219:{{ docker_repo_port }}"] }
+ 
+{"insecure-registries": ["96.115.240.58:8089", "96.115.240.58:8082", "96.115.240.58:8083", 
+"96.118.12.219:8082", "96.118.12.219:8083", "96.118.12.219:8089", "96.115.240.58:9001", "96.118.12.219:9001"]}
+
+
+Pushing the code :
+
+Code changes in platform-analytics
+metrics_collector tar file in platform-install-cloud
+image version in yaml files in platform-install-ansible

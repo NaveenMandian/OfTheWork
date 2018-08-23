@@ -1,0 +1,61 @@
+server_ip = 'localhost'
+server_port = 80
+exporter_dict = {}
+kafka_ip_address = 'localhost'
+kafka_plaintext_port = '9092'
+kafka_ssl_port = '9093'
+time_format = "%Y-%m-%d %H:%M:%S"
+polling_interval = 15
+enableLog = False
+secureConnectionToKafka = True
+json_type = 'type'
+zipkin_ip = 'localhost'
+zipkin_transport = 'kafka'
+zipkin_topic = 'zipkin_trace'
+kafka_onos_key = 'onos_key'
+setHttpServerPollingInterval = True
+event_acknowledgement = False
+
+
+exporter_parser 
+1. update_onos_events(onos_data, secureConnectionToKafka):
+2. get_data_from_redis(key):
+3. update_node_labels(label_json):
+4. get_node_type():
+5. update_polling_interval(interval_json):
+6. update_dns_info(dns_json):
+7. create_exporter_dict(exporter_json):
+8. remove_exporter(exporter_json):
+9. url_processing_thread(exporter, item, producer, node_type, label_dict, var_dict, headers):
+10. parse_url_thread(exporter, item, producer, node_type, label_dict, var_dict, headers):
+11. read_kubernetes_metrics(url):
+12. read_exporter_content(item, exporter):
+13. start_metrics_collection(producer, exporter,item):
+14. collect_exporter_metrics(producer):
+
+parse_url
+1. create_zipkin_kafka_producer():
+2. get_Kafka_brokers_list(type):
+3. ConnectToKafka_SSL():
+4. ConnectToKafka_PLAINTEXT():
+5. ConnectToKafka():
+6. create_zipkin_kafka_producer():
+7. zipkin_transport_handler(message):
+8. parse_and_push(data, time, exporter, addr, producer, node_type, label_dict, var_dict, headers):
+9. parse_url_data(data, time, exporter, addr, producer, node_type, label_dict, var_dict, headers):
+10. write_json_into_kafka(json_data, topic, producer, addr, var_dict = {'jumbo_topic':'default'}):
+11. form_json_data(measurement, tags, time, value, exporter, addr, node_type, label_dict):
+
+restServer.py
+
+class Rest_Server(BaseHTTPRequestHandler):
+              _set_headers(self):
+			  do_GET(self):
+			  do_HEAD(self):
+			  do_POST(self):
+			  
+run(server_class=HTTPServer, handler_class=Rest_Server, port=server_port):
+start_prom_collector(producer):
+start_rest_server():
+if __name__ == "__main__":
+

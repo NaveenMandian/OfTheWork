@@ -1,0 +1,83 @@
+/home/cjames003c/github/platform-analytics/platform_analytics/prometheus_exporter
+
+tbserver5 - 192.168.14.25 
+
+
+
+code - parse_url.py
+
+def write_json_into_kafka(json_data, topic, producer, var_dict = {'jumbo_topic':'default'}):
+    try:
+        if var_dict['jumbo_topic'] != 'default':
+            topic = var_dict['jumbo_topic']
+        json_data=json_data.replace("'",'"').strip('[]')
+        future = producer.send(topic, json_data)			-->pushing
+#        record_metadata = future.get(timeout=10)
+#        logger.info("Successfully written into kafka : topic=%s partition=%d offset=%d json_data=%s" % (record_metadata.topic, record_metadata.partition,
+#                                      record_metadata.offset, json_data))		--->warning
+    except Exception as e:
+        error_string = str(e)
+        index = error_string.find('Timeout')
+        if index > -1:
+            logger.critical("Kafka Timeout error ")
+
+tar -zcvf metrics-collector.tar.gz prometheus_exporter/
+			
+			
+			
+docker build
+/home/cjames003c/github/platform-install-cloud/docker/metrics-collector
+
+
+copy metrics-collector.tar.gz to config/
+
+build docker
+---------
+
+sudo docker build -t 96.115.240.58:9001/metrics-collector:17.0-50 .  ----> Updating image
+
+
+sudo docker push  96.115.240.58:9001/metrics-collector:17.0-s45
+
+
+
+
+
+update image and create monitoring-probe
+
+      - name: metrics-collector
+        image: {{ docker_repo }}:{{ docker_repo_port }}/metrics-collector:16.0-s44
+		
+
+		
+kubectl delete -f 
+
+kubectl create -f 
+
+Modules :
+
+os, threading - Thread,-;, logging, argparse, sys, re, urllib2, ssl, paramiko, json, time - sleep,-; datetime - datetime,-; 
+py_zipkin.zipkin - zipkin_span, create_http_headers_for_new_span, ZipkinAttrs,-; redis.sentinel - Sentinel,-; requests, 
+kafka -KafkaProducer,-; BaseHTTPServer -BaseHTTPRequestHandler, HTTPServer,-; random
+
+from parse_url import logger, ConnectToKafka, create_zipkin_kafka_producer
+
+from exporter_parser import create_exporter_dict, collect_exporter_metrics, \
+    update_dns_info, update_polling_interval, update_node_labels, update_onos_events, remove_exporter
+
+#sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
+
+#from platform_analytics.all_metrics import logger
+
+
+
+files 2 know -> /platform_analytics/metadata, restServer_config, parse_url, Inventory_config, exporter_parser.py, 
+version.py
+
+common tasks - zip, unzip, SystemExit, daemon = True, class in python and working
+
+applications - onos, kafka, connect to Kafka , SSL, OpenSSL, parse URL, form JSON Data, write json to kafka, zipkin, logging basic config
+
+
+"  if __name__ == '__main__':
+    entry_point()  "

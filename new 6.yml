@@ -1,0 +1,117 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: monitoring-probe-ds
+spec:
+  selector:
+    matchLabels:
+      app: monitoring-probe
+  template:
+    metadata:
+      name: monitoring-probe
+      labels:
+        app: monitoring-probe
+    spec:
+      tolerations:
+      - key: "cmk"
+        operator: "Exists"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: {{ PPOD_label if version == '2.0' else 'cluster_name' }}
+                operator: In
+                values:
+                - "{{ PPOD_name if version == '2.0' else K8s_cluster_name }}"
+      hostNetwork: true
+      imagePullSecrets:
+      - name: nexus-docker-secret
+      containers:
+      - name: metrics-collector
+        image: {{ docker_repo }}:{{ docker_repo_port }}/metrics-collector:17.0-s55
+        env:
+        - name: COREPIN
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: COREPIN
+        - name: CORENUM
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: CORENUM
+        - name: KAFKA_IP
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: KAFKA_IP
+        - name: KAFKA_PLAINTEXT_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: KAFKA_PLAINTEXT_PORT
+        - name: KAFKA_SSL_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: KAFKA_SSL_PORT
+        - name: ENABLE_SECURITY
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: ENABLE_SECURITY
+        - name: JSON_TYPE
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: JSON_TYPE
+        - name: ENABLE_LOG
+          value: "False"
+        - name: NODE_NAME
+          valueFrom:
+             fieldRef:
+               fieldPath : status.podIP
+        - name: REST_PORT
+          value: "9080"
+        - name: ZIPKIN_TOPIC
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: ZIPKIN_TOPIC
+        - name: ZIPKIN_TRANSPORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: ZIPKIN_TRANSPORT
+        - name: ZIPKIN_IP
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: ZIPKIN_IP
+        ports:
+        - containerPort: 9080
+          hostPort: 9080
+        volumeMounts:
+        - mountPath: "/prometheus_exporter/certificates"
+          name: "cert"
+        - mountPath: "/config"
+          name: "config"
+        - mountPath: "/home/.ssh/"
+          name: "ssh-mount"
+
+      volumes:
+
+      - name: dev-cpu
+        hostPath:
+          path: /dev/cpu
+
+      - name: cert
+        secret:
+          secretName: kafka-cert
+      - name: config
+        configMap:
+          name: kafka-conf
+      - name: ssh-mount
+        hostPath:
+          path: /home/ubuntu/.ssh

@@ -1,0 +1,139 @@
+################ Monitoring Probe enable option for acknowledged event publishing along with fire and forget 
+^^^^^^^^
+
+ future = producer_onos.send(topic, key=kafka_onos_key, value=onos_data)
+
+		
+		
+		#        record_metadata = future.get(timeout=10)
+#        logger.info("Successfully written into kafka : topic=%s partition=%d offset=%d json_data=%s" % (record_metadata.topic, record_metadata.partition,
+#                                      record_metadata.offset, json_data))
+
+
+
+
+
+^^^^^^^^^^^^^^
+def write_json_into_kafka() ---> parse_url
+
+$ grep -r 'future'
+parse_url.py:        future = zipkin_producer.send(zipkin_topic, message)
+parse_url.py:        #record_metadata = future.get(timeout=10)
+parse_url.py:        future = producer.send(topic, key=addr, value=json_data)
+parse_url.py:#        record_metadata = future.get(timeout=10)
+exporter_parser.py:        future = producer_onos.send(topic, key=kafka_onos_key, value=onos_data)
+
+
+update onos events ---> exporter_parser (future is used)
+
+
+
+
+
+
+--> event_acknowledgement = TRUE in restServer_config.py
+
+import this into exporter_parser and parse_url files.
+
+add this logic if event_acknowledgement == TRUE:
+                 #record_metadata = future.get(timeout=10)
+        #logger.info("Successfully written into kafka : topic=%s partition=%d offset=%d " % (record_metadata.topic, record_metadata.partition,
+        #                                  record_metadata.offset))
+
+		
+		(OR)
+		broker_list = broker_string.split(',')
+    logger.info("Kafka broker list updated " + str(broker_list))
+    return broker_list
+		
+
+
+
+CODES Changed :
+exporter_parser.py
+else:
+        producer_onos = ConnectToKafka_PLAINTEXT()
+    if producer_onos is not False:
+        logger.warning('Posting ONOS events info to kafka topic : '+topic)
+        future = producer_onos.send(topic, key=kafka_onos_key, value=onos_data)
+        producer_onos.close()
+
+		
+parse_url.py
+
+def zipkin_transport_handler(message):
+    global zipkin_producer
+    if zipkin_transport == 'kafka':
+        future = zipkin_producer.send(zipkin_topic, message)
+        #record_metadata = future.get(timeout=10)
+        #logger.info("Successfully written into kafka : topic=%s partition=%d offset=%d " % (record_metadata.topic, record_metadata.partition,
+        #                                  record_metadata.offset))
+    elif zipkin_transport == 'zipkin':
+	
+parse_url.py
+
+def write_json_into_kafka(json_data, topic, producer, addr, var_dict = {'jumbo_topic':'default'}):
+    try:
+        if var_dict['jumbo_topic'] != 'default':
+            topic = var_dict['jumbo_topic']
+        json_data=json_data.replace("'",'"').strip('[]')
+        future = producer.send(topic, key=addr, value=json_data)
+#        record_metadata = future.get(timeout=10)
+#        logger.info("Successfully written into kafka : topic=%s partition=%d offset=%d json_data=%s" % (record_metadata.topic, record_metadata.partition,
+#                                      record_metadata.offset, json_data))
+    except Exception as e:
+        error_string = str(e)
+        index = error_string.find('Timeout')
+        if index > -1:
+            logger.critical("Kafka Timeout error ")
+
+	
+
+### 16th July
+if producer_onos is not False:
+        if event_acknowledgement == True:
+            logger.warning('Posting ONOS events info to kafka topic : '+topic)
+            future = producer_onos.send(topic, key=kafka_onos_key, value=onos_data)
+            record_metadata = future.get(timeout=10)
+            logger.info('Succesfully posted ONOS events into kafka topic : '+record_metadata.topic)
+            producer_onos.close()
+        else:
+            logger.warning('Posting ONOS events info to kafka topic : '+topic)
+            future = producer_onos.send(topic, key=kafka_onos_key, value=onos_data)
+            producer_onos.close()
+			
+Right Now :
+ if producer_onos is not False:
+        if event_acknowledgement == True:
+            logger.warning('Posting ONOS events info to kafka topic : '+topic)
+            future = producer_onos.send(topic, key=kafka_onos_key, value=onos_data)
+            try:
+                record_metadata = future.get(timeout=10)
+            except Exception as e:
+                logger.warning('Unable to publish event acknowledgement for posting ONOS Events to kafka topic: ' + str(e))
+            else:
+                logger.info('Event Acknowledgement - Succesfully posted ONOS events into kafka topic : ' + record_metadata.topic)
+                producer_onos.close()
+
+        else:
+            logger.warning('Posting ONOS events info to kafka topic : '+topic)
+            future = producer_onos.send(topic, key=kafka_onos_key, value=onos_data)
+            producer_onos.close()
+
+
+		
+
+
+
+
+
+
+
+
+
+
+
+
+
+#### Modules 
+py_zipkin.zipkin
