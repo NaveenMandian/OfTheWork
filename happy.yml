@@ -1,0 +1,310 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: telethriftserver-ds
+spec:
+  selector:
+    matchLabels:
+      app: telethriftserver
+  template:
+    metadata:
+      name: telethriftserver
+      labels:
+        app: telethriftserver
+    spec:
+      tolerations:
+      - key: "cmk"
+        operator: "Exists"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: {{ PPOD_label if version == '2.0' else 'cluster_name' }}
+                operator: In
+                values:
+                - "{{ PPOD_name if version == '2.0' else K8s_cluster_name }}"
+      hostNetwork: true
+      imagePullSecrets:
+      - name: nexus-docker-secret
+      containers:
+
+      - name: telethriftserver
+        image: {{ docker_repo }}:{{ docker_repo_port }}/metrics-collector:17.0-s50
+        securityContext:
+          privileged: true
+        resources:
+          limits:
+            memory: "10G"
+        env:
+        - name: KAFKA_IP
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: KAFKA_IP
+        - name: KAFKA_PLAINTEXT_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: KAFKA_PLAINTEXT_PORT
+        - name: KAFKA_SSL_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: KAFKA_SSL_PORT
+        - name: USE_SSL
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: ENABLE_SECURITY
+        - name: NODE_NAME
+          valueFrom:
+             fieldRef:
+               fieldPath : status.podIP
+        - name: NAMESPACE_NAME
+          valueFrom:
+             fieldRef:
+               fieldPath : metadata.namespace
+        - name: THRIFT_PORT
+          #value: "5048"
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: THRIFT_PORT
+        - name: THRIFT_CMSUMMARY_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: THRIFT_CMSUMMARY_PORT
+        - name: THRIFT_SAMIS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: THRIFT_SAMIS_PORT
+        - name: THRIFT_IFCOUNTERS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: THRIFT_IFCOUNTERS_PORT
+        - name: THRIFT_CMUSPERF_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: THRIFT_CMUSPERF_PORT
+        - name: THRIFT_RPD_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: THRIFT_RPD_PORT
+        - name: THRIFT_PACKETCABLE_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: THRIFT_PACKETCABLE_PORT
+        - name: THRIFT_MULTICAST_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: THRIFT_MULTICAST_PORT
+        - name: THRIFT_GCP_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: THRIFT_GCP_PORT
+        - name: AVRO_KAFKA_TOPIC_K_CMREGSTATUS
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: AVRO_KAFKA_TOPIC_K_CMREGSTATUS
+        - name: AVRO_KAFKA_TOPIC_CM_SUMMARY
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: AVRO_KAFKA_TOPIC_CM_SUMMARY
+        - name: AVRO_KAFKA_TOPIC_K_IFCOUNTER
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: AVRO_KAFKA_TOPIC_K_IFCOUNTER
+        - name: AVRO_KAFKA_TOPIC_CMUSPERF
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: AVRO_KAFKA_TOPIC_CMUSPERF
+        - name: AVRO_KAFKA_TOPIC_SAMIS
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: AVRO_KAFKA_TOPIC_SAMIS
+        - name: AVRO_KAFKA_TOPIC_SIGNALNOISE
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: AVRO_KAFKA_TOPIC_SIGNALNOISE
+        - name: RLCM_TOPIC
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: RLCM_TOPIC
+        - name: THRIFT_OOB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: THRIFT_OOB_PORT
+        - name: THRIFT_MATCHMAKER_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: THRIFT_MATCHMAKER_PORT
+        - name: THRIFT_ATX_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: THRIFT_ATX_PORT
+        - name: THRIFT_VIDEOCORE_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: THRIFT_VIDEOCORE_PORT
+        - name: THRIFT_CONFIGMAN_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: THRIFT_CONFIGMAN_PORT
+        - name: THRIFT_RLCMAWS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: THRIFT_RLCMAWS_PORT
+        - name: PACKETCABLE_SETUP
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: PACKETCABLE_SETUP
+        - name: MULTICAST_SETUP
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: MULTICAST_SETUP
+        - name: TIME_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: POLL_TIME_INTERVAL
+        - name: VCMTS_SETUP
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: VCMTS_SETUP
+        - name: E6K_SETUP
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: E6K_SETUP
+        - name: MATCHMAKER_SETUP
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: MATCHMAKER_SETUP
+        - name: OOB_SETUP
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: OOB_SETUP
+        - name: VIDEOCORE_SETUP
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: VIDEOCORE_SETUP
+        - name: GCPP_SETUP
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: GCPP_SETUP
+        - name: CONFIGMAN_SETUP
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: CONFIGMAN_SETUP
+        - name: RLCMAWS_SETUP
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: RLCMAWS_SETUP
+        - name: POLLING_ENABLE
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: POLLING_ENABLE
+        - name: MAX_REQUEST_SIZE
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: MAX_REQUEST_SIZE
+        - name: SRC_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: SRC_PATH
+        - name: GEN_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: GEN_PATH
+        - name: TEST_LOG
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: TEST_LOG
+        - name: UNIT_TEST_ENABLE
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: UNIT_TEST_ENABLE
+        - name: UNIT_TEST_CURL_OUTPUT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: UNIT_TEST_CURL_OUTPUT
+        - name: UNIT_TEST_POLLTELEMETRY
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: UNIT_TEST_POLLTELEMETRY
+        - name: DEBUG_LOGS
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: DEBUG_LOGS
+        - name: SITE_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: SITE_NAME
+        - name: CLUSTER_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: CLUSTER_NAME
+        - name: RLCM_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: RLCM_KEY
+        volumeMounts:
+        - mountPath: "/prometheus_exporter/certificates"
+          name: "cert"
+        - mountPath: "/config"
+          name: "config"
+        - mountPath: "/var/log"
+          name: "telethriftserverlogs"
+      volumes:
+      - name: telethriftserverlogs
+        hostPath:
+          path: /var/lib/docker/containers/telethriftserver
+      - name: cert
+        secret:
+          secretName: kafka-cert
+      - name: config
+        configMap:
+          name: kafka-conf

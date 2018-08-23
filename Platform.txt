@@ -1,0 +1,36 @@
+Telemetry Data (Means Diagnostics and Utility Data)
+
+Platform -------------------------------------------------
+
+Redis --
+
+
+Rabbit MQ ---
+
+
+ONOS -----
+
+
+Ciena ---
+
+
+Exporters ----
+
+
+
+Prometheus ------
+
+Ansible -------
+
+
+Terraform ---------
+
+
+
+SDN/NFV -----
+
+
+
+
+
+

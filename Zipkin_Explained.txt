@@ -1,0 +1,67 @@
+Search -
+
+1. zipkin implementation tutorial
+
+
+OpenZipkin - 
+ ---- https://zipkin.io/
+
+Introducing distributed tracing in your Python application via Zipkin:
+---- https://echorand.me/introducing-distributed-tracing-in-your-python-application-via-zipkin.html
+
+Zipkin for ELK :
+---- https://dzone.com/articles/distributed-tracing-with-zipkin-and-elk
+
+Tracing HTTP request latency in Go with OpenTracing :
+---- https://medium.com/opentracing/tracing-http-request-latency-in-go-with-opentracing-7cc1282a100a
+
+Trace Your Microservices Application with Zipkin and OpenTracing :
+---- https://www.cncf.io/blog/2018/03/19/trace-your-microservices-application-with-zipkin-and-opentracing/
+
+Distributed Tracing: Exploring the Past, Present and Future with Dapper, Zipkin and LightStep [x]PM :
+----- https://www.infoq.com/articles/distributed-tracing-microservices
+
+
+Distributed tracing is a technique for monitoring and profiling systems built on microservices architecture, 
+popularized by such systems as X-Trace, Google’s Dapper and Twitter’s Zipkin, OpenTracing.
+
+Jaeger - a Distributed Tracing System. Jaeger, inspired by Dapper and OpenZipkin, is a distributed tracing system released as open source by Uber Technologies.
+
+Key Takeaways :
+
+Distributing tracing is increasingly seen as an essential component for observing distributed systems and 
+microservice applications. There are several popular open source standards and frameworks like the OpenTracing API and OpenZipkin
+
+The basic idea behind distributed tracing is relatively straightforward -- specific request inflexion points 
+must be identified within a system and instrumented. All of the trace data must be coordinated and collated to provide a meaningflow view of a request
+
+Request tracing is similar in concept to Application Performance Management (APM), and an emerging challenge 
+within both ecosystems is processing the volume of the data generated from increasingly large-scale systems
+
+Google overcame this issue when implementing their Dapper distributed tracing system by sampling traces, 
+typically 1 in 1000, but modern commercial tracing products claim to be able to analyse 100% of requests.
+
+
+Distributed Tracing in 10 Minutes ----
+https://medium.com/opentracing/distributed-tracing-in-10-minutes-51b378ee40f1
+
+http://opentracing.io/documentation/pages/quick-start
+
+
+https://github.com/yurishkuro/opentracing-tutorial/tree/master/python
+yurishkuro/opentracing-tutorial - Github
+
+From zero to distributed traces: An OpenTracing tutorial -----
+https://conferences.oreilly.com/velocity/vl-ny-2017/public/schedule/detail/62776
+
+
+Distributed Tracing: The What, Why and How --
+https://sweetcode.io/distributed-tracing-what-why-how/
+
+
+
+
+
+
+
+

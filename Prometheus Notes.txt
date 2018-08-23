@@ -1,0 +1,270 @@
+###################### PROMETHEUS EXPLAINED ####################################
+
+from time import sleep
+
+sleep_time = 2
+num_retries = 4
+for x in range(0, num_retries):  
+    try:
+        # put your logic here
+        str_error = None
+    except Exception as str_error:
+        pass
+
+    if str_error:
+        sleep(sleep_time)  # wait before trying to fetch the data again
+        sleep_time *= 2  # Implement your backoff algorithm here i.e. exponential backoff
+    else:
+        break
+        
+from time import sleep
+
+sleep_time = 2
+num_retries = 50
+for x in range(0, num_retries):  
+    try:
+        # put your logic here
+        str_error = None
+    except Exception as str_error:
+        pass
+
+    if str_error:
+        sleep(sleep_time)  # wait before trying to fetch the data again
+        sleep_time *= 2  # Implement your backoff algorithm here i.e. exponential backoff
+    else:
+        break
+        
+        
+ if producer_onos is not False:
+        if event_acknowledgement == True:
+            sleep_time = 30
+            num_retries = 50
+            logger.warning('Posting ONOS events info to kafka topic : '+topic)
+            future = producer_onos.send(topic, key=kafka_onos_key, value=onos_data)
+            for x in range(0,num_retries):
+                try:
+                    record_metadata = future.get(timeout=10)
+                    std_error = None
+                except Exception as std_error:
+                    pass
+                if std_error:
+                    sleep(sleep_time)
+                   
+                else:
+                    break
+        logger.info('Event Acknowledgement - Succesfully posted ONOS events into kafka topic : ' + record_metadata.topic)
+        producer_onos.close()
+        else:
+            logger.warning('Posting ONOS events info to kafka topic : '+topic)
+            future = producer_onos.send(topic, key=kafka_onos_key, value=onos_data)
+            producer_onos.close()
+            
+            
+
+            
+            #### while
+            publish_attempsts = 0
+            while publish_attempsts < 100:
+                try:
+                    record_metadata = future.get(timeout=10)
+                    
+                except Exception as std_error:
+                    pass
+                    
+                
+                
+                
+            
+        producer=ConnectToKafka()
+        if producer is False:
+            connectionFaliurecount = connectionFaliurecount + 1
+            time.sleep(15)
+        else:
+            break
+
+            
+            
+ ###########
+ monitoring_probe.yaml
+ 
+  - name: metrics-collector
+        image: {{ docker_repo }}:{{ docker_repo_port }}/metrics-collector:16.0-s44
+        env:
+
+        
+        
+        
+        ####
+        
+        
+     #######################################-------------
+Monitoring Probe (Functions)
+#######################################--------------------
+
+Class - Rest_Server --> in restServer.py
+
+def run :
+
+restServer.py:def run(server_class=HTTPServer, handler_class=Rest_Server, port=server_port):
+restServer.py:    thread = Thread(target=run, args=( ))
+
+Docker:
+Removing intermediate container fdaec815c2c1
+Successfully built 151abc45aa3a
+
+
+#############################
+
+ubuntu@kube-master-2:~/naveen_b07$ sudo docker save -o metrics_collector.tar 151abc45aa3a
+ubuntu@kube-master-2:~/naveen_b07$ ls
+metrics_collector.tar  platform-analytics  platform-install-ansible  platform-install-cloud  sample.py
+
+
+ubuntu@kube-master-4:~$ kubectl get nodes  ---96.112.167.4
+NAME            STATUS    ROLES     AGE       VERSION
+96.112.167.10   Ready     <none>    2h        v1.9.6
+96.112.167.11   Ready     <none>    2h        v1.9.6
+96.112.167.5    Ready     <none>    5h        v1.9.6
+96.112.167.6    Ready     <none>    5h        v1.9.6
+96.112.167.7    Ready     <none>    5h        v1.9.6
+96.112.167.8    Ready     <none>    2h        v1.9.6
+96.112.167.9    Ready     <none>    2h        v1.9.6
+
+
+###############
+ubuntu@kube-worker-11:~$ sudo docker load --input metrics-collector/metrics_collector.tar
+956940650d5d: Loading layer [==================================================>] 84.89 MB/84.89 MB
+67b9b2a215ea: Loading layer [==================================================>] 15.87 kB/15.87 kB
+219d5a9f3bbe: Loading layer [==================================================>] 10.24 kB/10.24 kB
+8fec0692e6a1: Loading layer [==================================================>] 5.632 kB/5.632 kB
+374f3534200b: Loading layer [==================================================>] 3.072 kB/3.072 kB
+7f6268eda047: Loading layer [==================================================>] 400.2 MB/400.2 MB
+a2f11417bcaa: Loading layer [==================================================>] 9.563 MB/9.563 MB
+a01eb58c3eb0: Loading layer [==================================================>]   446 kB/446 kB
+400a9658f73b: Loading layer [==================================================>] 10.24 kB/10.24 kB
+300736407d81: Loading layer [==================================================>] 3.584 kB/3.584 kB
+Loaded image ID: sha256:151abc45aa3a6db7e33c1f623cfa04ebf6c41ed62938f7d82ac498f9735f8a84
+
+
+
+
+################### Changes made #############
+
+ if producer_onos is not False:
+        if event_acknowledgement == True:
+            logger.warning('Posting ONOS events info to kafka topic : events acknowledgement will be published '+topic)
+            future = producer_onos.send(topic, key=kafka_onos_key, value=onos_data)
+            publish_attempts = 0
+            while publish_attempts < 25:
+                record_metadata = future.get(timeout=10)
+                if record_metadata is False:
+                    publish_attempts = publish_attempts + 1
+                    time.sleep(3)
+                else:
+                    break
+
+            #Initial 100 attempts to publish event acknowledgement failed
+            if record_metadata is False:
+                logger.critical('Initial attempts to publish events failed, will retry after sometime.')
+                while True:
+                    record_metadata = future.get(timeout=10)
+                    if record_metadata is False:
+                        retrydelay = 90
+                        logger.warning('Wait for ' + str(retrydelay) + ' seconds before next retry')
+                        time.sleep(retrydelay)
+                    else:
+                        break
+
+
+            logger.info('Event Acknowledgement - Succesfully posted ONOS events into kafka topic : ' + record_metadata.topic)
+            producer_onos.close()
+        else:
+            logger.warning('Posting ONOS events info to kafka topic : '+topic)
+            future = producer_onos.send(topic, key=kafka_onos_key, value=onos_data)
+            producer_onos.close()
+
+            
+ ################################ Tasks ##################
+ 
+ Hi Gupthaji,
+
+The below is the understanding of us on CachetHQ , Zabbix and Consul tools.
+
+/**************************************************************************************************************/
+Cachetd:
+Cachet uses a zero-based numbering scheme to identify incident and component statuses.
+We can configure subscribers for alert.
+
+Pre-requisites on server are,
+1. PHP 5.6.4+ or newer. Need ext-gd, ext-simplexml, mcrypt and ext-xml installed.
+2. HTTP server with PHP support (Apache,Ngix or Caddy)
+3. Composer and ext-mbstring,ext-tokenizer
+4. APC or Redis for caching.
+5. A database driver for your DB, such as MySQL, PostgreSQL or SQLite(not advised incase of high traffic). 
+
+Note:
+1. Hope we can scale cachethq horizontally by making cachethq, nginx and postgresql docker cluster.
+2. Have referred to https://github.com/CachetHQ and https://docs.cachethq.io/docs pages for information.
+
+Conclusion:
+With our present understanding it is an incident management system application.
+It can be used to monitor the issues raised and resolved. 
+
+/**************************************************************************************************************/
+
+Zabbix:
+Monitors numerous parameters of a network and the health and integrity of servers.
+Can configure email based alerts for any event.
+Supports both polling and trapping.
+All Zabbix reports and statistics, as well as configuration parameters, are accessed through a web-based frontend. 
+
+Components:
+1. Zabbix agent
+2. Zabbix server with MySQL/PostgreSQL db
+3. Zabbix web interface based on Apache2 webserver with MySQL db
+   Zabbix web interface based on Nagix webserver with MySQL db 
+   Zabbix web interface based on Nagix webserver with PostgreSQL db 
+4. Zabbix proxy with SQLite3 database support
+   Zabbix proxy with MySQL database support
+5. Zabbix Java Gateway
+
+Note:
+1. Dockbix agent container can be used to monitor all Docker containers on our host.
+2. Have used https://www.zabbix.com/documentation/3.4/manual/introduction/manual_structure , https://www.zabbix.com/forum and 
+   https://github.com/monitoringartist/dockbix-agent-xxl/#how-to-monitor-dockerized-apps as reference material.
+
+Conclusion:
+It is a tool which can poll and trap the application which are running on host machines and also running as dockerized-apps.
+It can be used for continuous monitor and display the application status.
+
+/**************************************************************************************************************/
+Consul:
+It is a tool for discovering and configuring services in your infrastructure. 
+Build on Golang
+
+Features:
+Service discovery
+Health check status
+Key/value store :Dynamic configuration, feature flagging, coordination, leader election
+Multi datacenter deployment
+Web UI 
+
+Installation:
+1. Download Consul which is packaged as a zip archive.
+2. Unzip the package.
+3. The final step is to make sure that the consul binary is available on the PATH.
+4. The agent must be running on every node that is part of the cluster in server mode in servers and client mode in clients.
+5. A service can be registered either by providing a service definition or by making the appropriate calls to the HTTP API. After this we have to restart agent and then we can query the service as http or dns
+6. for cluster nodes has to be joined auto joining is also there 
+
+Note:
+1. Running Health Checks in Docker Containers. 
+2. Have referred the https://www.consul.io/intro/index.html and https://www.consul.io/docs/install/index.html#compiling-from-source documentation.
+
+Conclusion:
+It can be used to continuously monitor and display the health status of the host specific and dockerized applications.
+
+
+
+ 
+ 

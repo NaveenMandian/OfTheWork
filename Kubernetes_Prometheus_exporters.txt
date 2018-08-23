@@ -1,0 +1,84 @@
+Data Flow --- 
+
+•Node Exporter: http://<hostip>:9100/metrics
+•Collectd Exporter: http://<hostip>:9103/metrics
+•Kubernetes Exporter: http://<hostip>:4194/metrics
+•Redis Exporter: http://<containerip>:9121/metrics
+•RabbitMQ Exporter: http://<containerip>:9090/metrics
+•Onos Exporter: http://<containerip>:9010/metrics
+
+
+
+
+Metrics collection Procedure(Old):
+•Each exporter contains large number of messages.
+•Metrics Collector collects the messages from each of the Exporters in Json format.
+•All these messages are then passed to Kafka.
+•Stream Processor collects the messages from Kafka.
+
+
+
+
+Metrics collection Procedure(Jumbo):
+•Metrics Collector collects the messages from each of the Exporters.
+•All the messages in a single exporter are grouped into a single message by Metrics collector.
+•These single messages from all the exporters are sent to from Kafka as a list.
+•The Stream Processor collects the data from Kafka in the same form.
+•The message is then processed and separated into individual messages in Stream Processor.​
+
+#################################################################################################################
+
+### RESTful web services - RESTful Architecture.
+
+---- Install Prometheus on Linux Mint.
+   try different configs.
+   
+https://www.digitalocean.com/community/tutorials/how-to-install-prometheus-on-ubuntu-16-04
+https://prometheus.io/docs/introduction/first_steps/
+   
+------ Install Kubernetes in GCP or AWS
+Install Prometheus and related exporters.
+
+https://devopscube.com/setup-prometheus-monitoring-on-kubernetes/
+https://medium.com/@timfpark/simple-kubernetes-cluster-monitoring-with-prometheus-and-grafana-dd27edb1641
+
+EFK ---
+
+------ https://blog.ptrk.io/how-to-deploy-an-efk-stack-to-kubernetes/
+------ https://akomljen.com/get-kubernetes-logs-with-efk-stack-in-5-minutes/
+
+
+
+Telemetry Data (Means Diagnostics and Utility Data)
+
+Platform -------------------------------------------------
+
+Redis --
+
+
+Rabbit MQ ---
+
+
+ONOS -----
+
+
+Ciena ---
+
+
+Exporters ----
+
+
+
+Prometheus ------
+
+Ansible -------
+
+
+Terraform ---------
+
+
+
+SDN/NFV -----
+
+
+
