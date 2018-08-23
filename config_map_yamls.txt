@@ -1,0 +1,233 @@
+############# Config_Map ##################
+### metrics-collector-rc
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: metrics-collector-rc
+spec:
+  replicas: 1
+  selector:
+    app: metrics-collector
+  template:
+    metadata:
+      name: metrics-collector
+      labels:
+        app: metrics-collector
+    spec:
+      tolerations:
+      - key: "cmk"
+        operator: "Exists"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: infra
+                operator: In
+                values:
+                - 'true'
+              - key: workernode
+                operator: In
+                values:
+                - "cppod"
+      imagePullSecrets:
+      - name: nexus-docker-secret
+      containers:
+      - name: metrics-collector
+        image: 96.115.240.58:8089/metrics-collector:17.0-s50
+        env:
+        - name: COREPIN
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: COREPIN
+        - name: CORENUM
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: CORENUM
+        - name: KAFKA_IP
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: KAFKA_IP
+        - name: KAFKA_PLAINTEXT_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: KAFKA_PLAINTEXT_PORT
+        - name: KAFKA_SSL_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: KAFKA_SSL_PORT
+        - name: ENABLE_SECURITY
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: ENABLE_SECURITY
+        - name: SET_HTTP_SERVER_POLLING_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: SET_HTTP_SERVER_POLLING_INTERVAL
+        - name: JSON_TYPE
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: JSON_TYPE
+        - name: ENABLE_LOG
+          value: "False"
+        - name: NODE_NAME
+          valueFrom:
+             fieldRef:
+               fieldPath : status.podIP
+        - name: REST_PORT
+          value: "9080"
+        - name: ZIPKIN_TOPIC
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: ZIPKIN_TOPIC
+        - name: ZIPKIN_TRANSPORT
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: ZIPKIN_TRANSPORT
+        - name: ZIPKIN_IP
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: ZIPKIN_IP
+        - name: RLCM_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: telemetry-configmap
+              key: RLCM_KEY
+        volumeMounts:
+        - mountPath: "/prometheus_exporter/certificates"
+          name: "cert"
+        - mountPath: "/config"
+          name: "config"
+        - mountPath: "/home/.ssh/"
+          name: "ssh-mount"
+      volumes:
+      - name: cert
+        secret:
+          secretName: kafka-cert
+      - name: config
+        configMap:
+          name: kafka-conf
+      - name: ssh-mount
+        hostPath:
+          path: /home/ubuntu/.ssh
+
+          
+#### ciena-exp.yaml
+
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: ciena
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: ciena
+        app: ciena
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: infra
+                operator: In
+                values:
+                - 'true'
+              - key: workernode
+                operator: In
+                values:
+                - "cppod"
+      terminationGracePeriodSeconds: 0
+      restartPolicy: Always
+      imagePullSecrets:
+      - name: nexus-docker-secret
+      containers:
+      - name: ciena-exporter
+        image: 96.115.240.58:8089/cc-ciena-exporter:v1.0.3
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9019
+        livenessProbe:
+          tcpSocket:
+            port: 9019
+          initialDelaySeconds: 10
+          periodSeconds: 5
+
+          
+######### telemetry-configmap.yaml
+
+ apiVersion: v1
+ kind: ConfigMap
+ metadata:
+   name: telemetry-configmap
+ data:
+   COREPIN: "false"
+   CORENUM: "4"
+   KAFKA_IP: 13.56.66.180,13.56.205.147,13.56.143.185
+   KAFKA_PLAINTEXT_PORT: "9092"
+   KAFKA_SSL_PORT: "9093"
+   ENABLE_SECURITY: "True"
+   SET_HTTP_SERVER_POLLING_INTERVAL: "True"
+   JSON_TYPE: "jumbo"
+   THRIFT_PORT: "5050"
+   THRIFT_RPD_PORT: "5550"
+   AVRO_KAFKA_TOPIC_K_CMREGSTATUS: "K_CmRegStatus"
+   AVRO_KAFKA_TOPIC_CM_SUMMARY: "K_CmSummary"
+   AVRO_KAFKA_TOPIC_K_IFCOUNTER: "K_IfCounters"
+   AVRO_KAFKA_TOPIC_CMUSPERF: "K_CmUsPerf"
+   AVRO_KAFKA_TOPIC_SAMIS: "K_SamisOne"
+   AVRO_KAFKA_TOPIC_SIGNALNOISE: "K_SignalQualitySNR"
+   RLCM_TOPIC: "rlcmData"
+   POLL_TIME_INTERVAL: "15"
+   THRIFT_CMSUMMARY_PORT: "5052"
+   THRIFT_SAMIS_PORT: "5054"
+   THRIFT_IFCOUNTERS_PORT: "5056"
+   THRIFT_CMUSPERF_PORT: "5058"
+   THRIFT_OOB_PORT: "5650"
+   THRIFT_MATCHMAKER_PORT: "5750"
+   THRIFT_ATX_PORT: "5850"
+   THRIFT_VIDEOCORE_PORT: "5950"
+   THRIFT_CONFIGMAN_PORT: "6150"
+   THRIFT_RLCMAWS_PORT: "6050"
+   THRIFT_PACKETCABLE_PORT: "6250"
+   THRIFT_MULTICAST_PORT: "6160"
+   THRIFT_GCP_PORT: "5560"
+   MAX_REQUEST_SIZE: "10485760"
+   VCMTS_SETUP: "True"
+   E6K_SETUP: "False"
+   MATCHMAKER_SETUP: "True"
+   OOB_SETUP: "False"
+   VIDEOCORE_SETUP: "False"
+   GCPP_SETUP: "True"
+   CONFIGMAN_SETUP: "False"
+   PACKETCABLE_SETUP: "True"
+   RLCMAWS_SETUP: "False"
+   POLLING_ENABLE: "True"
+   MULTICAST_SETUP: "True"
+   ZIPKIN_TRANSPORT: "kafka"
+   ZIPKIN_TOPIC: "zipkin_trace"
+   ZIPKIN_IP: "localhost"
+   SRC_PATH: "/src/build_ws/tele-thriftserver/tele-thriftserver/usr/share/telemetryScripts/"
+   GEN_PATH: "/src/build_ws/tele-thriftserver/tele-thriftserver/usr/share/telemetryScripts/gen-py"
+   TEST_LOG: "/var/log/nosetest.log"
+   UNIT_TEST_ENABLE: "False"
+   UNIT_TEST_CURL_OUTPUT: "/src/build_ws/tele-thriftserver/tele-thriftserver/usr/share/unitTest/curl_output.txt"
+   UNIT_TEST_POLLTELEMETRY: "/src/build_ws/tele-thriftserver/tele-thriftserver/usr/share/telemetryScripts/PollTelemetry.txt"
+   DEBUG_LOGS: "False"
+   SITE_NAME: "BishopGate"
+   CLUSTER_NAME: "Cluster1"
+   RLCM_KEY: "rlcmKey"
+

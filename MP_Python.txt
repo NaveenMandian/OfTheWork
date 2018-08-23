@@ -1,0 +1,606 @@
+##########################
+parse_url.py
+#############################
+
+import re
+import logging
+import requests
+from kafka import KafkaProducer
+from restServer_config import enableLog, server_ip, json_type, kafka_ip_address, kafka_plaintext_port, kafka_ssl_port, secureConnectionToKafka, zipkin_ip, zipkin_transport, zipkin_topic
+from py_zipkin.zipkin import zipkin_span, create_http_headers_for_new_span, ZipkinAttrs
+#import sys,os
+
+#sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
+
+#from platform_analytics.all_metrics import logger
+logging.basicConfig(format='%(levelname)s:%(asctime)s:%(message)s', level=logging.INFO, datefmt='%m/%d/%Y %I:%M:%S %p')
+logger = logging.getLogger('mylogger')
+
+if enableLog is False:
+     logging.disable(logging.INFO)
+
+
+def create_zipkin_kafka_producer():
+    zipkin_producer = False
+    while zipkin_producer is False:
+        zipkin_producer = ConnectToKafka()
+    return zipkin_producer
+
+
+def get_Kafka_brokers_list(type):
+    broker_string = ''
+    ip_list=kafka_ip_address.split(',')
+    for item in ip_list:
+        if type == 'SSL':
+            broker_string = broker_string + ',' + item + ':' + kafka_ssl_port
+        elif type == 'PLAINTEXT':
+            broker_string = broker_string + ',' + item + ':' + kafka_plaintext_port
+    broker_string = broker_string[1:]
+    broker_list = broker_string.split(',')
+    logger.info("Kafka broker list updated " + str(broker_list))
+    return broker_list
+
+
+def ConnectToKafka_SSL():
+    kafka_brokers_list = get_Kafka_brokers_list('SSL')
+    try:
+        producer = KafkaProducer(bootstrap_servers=kafka_brokers_list,
+                          security_protocol='SSL',
+                          ssl_check_hostname=False,
+                          ssl_cafile='/prometheus_exporter/certificates/ca.pem',
+                          ssl_certfile='/prometheus_exporter/certificates/producer.pem',
+                          ssl_keyfile='/prometheus_exporter/certificates/producer.key', max_request_size=5120000, request_timeout_ms = 90000)
+        return producer
+    except Exception as e:
+        error_string = str(e)
+        logger.critical("Unable to connect to kafka server " + error_string)
+        return False
+
+
+def ConnectToKafka_PLAINTEXT():
+    kafka_brokers_list = get_Kafka_brokers_list('PLAINTEXT')
+    try:
+        producer = KafkaProducer(bootstrap_servers=kafka_brokers_list)
+        return producer
+    except Exception as e:
+        error_string = str(e)
+        logger.critical("Unable to connect to kafka server " + error_string)
+        return False
+
+
+def ConnectToKafka():
+    if secureConnectionToKafka == True:
+        producer=ConnectToKafka_SSL()
+    else:
+        producer=ConnectToKafka_PLAINTEXT()
+    return producer
+
+
+zipkin_producer = ConnectToKafka()
+
+def create_zipkin_kafka_producer():
+    global zipkin_producer
+    while zipkin_producer is False:
+        zipkin_producer = ConnectToKafka()
+    logger.warning("Zipkin Kafka producer created")
+
+def zipkin_transport_handler(message):
+    global zipkin_producer
+    if zipkin_transport == 'kafka':
+        future = zipkin_producer.send(zipkin_topic, message)
+        #record_metadata = future.get(timeout=10)
+        #logger.info("Successfully written into kafka : topic=%s partition=%d offset=%d " % (record_metadata.topic, record_metadata.partition,
+        #                                  record_metadata.offset))
+    elif zipkin_transport == 'zipkin':
+        #body = '\x0c\x00\x00\x00\x01' + message
+        body = message
+        reply = requests.post(
+            'http://'+zipkin_ip+':9411/api/v1/spans',
+            data=body,
+            headers={'Content-Type': 'application/x-thrift'},
+        )
+
+def parse_and_push(data, time, exporter, addr, producer, node_type, label_dict, var_dict, headers):
+    logger.info('Started pushing metrics to Kafka for exporter '+exporter+'at http://'+addr+'/metrics')
+    jumbo_json_data = '{"type":"jumbo","content":['
+    for line in data:
+        match = re.search('^([a-zA-Z0-9_]+)({[a-zA-Z\"\=:\-,0-9\._\/\s%\\\@\?\&>]+})\s([0-9.\+\-a-zA-Z]+)$', line)
+        if match is not None:
+            measurement = match.group(1)
+            tags = match.group(2)
+            value = match.group(3)
+            json_data,topic=form_json_data(measurement, tags, time, value, exporter, addr, node_type, label_dict)
+            if json_type == "jumbo":
+                json_data=json_data.replace("'",'"').strip('[]')
+                jumbo_json_data=jumbo_json_data+json_data+','
+            else:
+                write_json_into_kafka(str(json_data), topic, producer, addr, var_dict)
+        else:
+            match = re.search('^([a-zA-Z0-9_]+)\s([0-9.\+\-a-zA-Z]+)$', line)
+            if match is not None:
+                measurement = match.group(1)
+                value = match.group(2)
+                tags='no_tag'
+                json_data,topic=form_json_data(measurement, tags, time, value, exporter, addr, node_type, label_dict)
+                if json_type == "jumbo":
+                    json_data=json_data.replace("'",'"').strip('[]')
+                    jumbo_json_data=jumbo_json_data+json_data+','
+                else:
+                    write_json_into_kafka(str(json_data), topic, producer, addr, var_dict)
+    if json_type == "jumbo":
+        jumbo_json_data = jumbo_json_data[:-1]
+        jumbo_json_data = jumbo_json_data + ']}'
+        with zipkin_span(
+            service_name=var_dict['Cluster_Name']+'-monitoring-probe-'+exporter+'-'+addr.strip('"'),
+            zipkin_attrs=ZipkinAttrs(
+                trace_id=headers['X-B3-TraceId'],
+                span_id=headers['X-B3-SpanId'],
+                parent_span_id=headers['X-B3-ParentSpanId'],
+                flags=headers['X-B3-Flags'],
+               is_sampled=headers['X-B3-Sampled'],
+            ),
+            span_name='push-to-kafka',
+            transport_handler=zipkin_transport_handler,
+            port=6000,
+            sample_rate=100, #0.05, # Value between 0.0 and 100.0
+        ):
+            write_json_into_kafka(jumbo_json_data, topic, producer, addr, var_dict)
+    logger.info('Finished pushing metrics to Kafka for exporter ' + exporter + 'at http://' + addr + '/metrics')
+
+
+def parse_url_data(data, time, exporter, addr, producer, node_type, label_dict, var_dict, headers):
+    with zipkin_span(
+        service_name=var_dict['Cluster_Name']+'-monitoring-probe-'+exporter+'-'+addr.strip('"'),
+        zipkin_attrs=ZipkinAttrs(
+            trace_id=headers['X-B3-TraceId'],
+            span_id=headers['X-B3-SpanId'],
+            parent_span_id=headers['X-B3-ParentSpanId'],
+            flags=headers['X-B3-Flags'],
+            is_sampled=headers['X-B3-Sampled'],
+        ),
+        span_name='parse-and-push',
+        transport_handler=zipkin_transport_handler,
+        port=6000,
+        sample_rate=100, #0.05, # Value between 0.0 and 100.0
+    ):
+        headers = create_http_headers_for_new_span()
+        parse_and_push(data, time, exporter, addr, producer, node_type, label_dict, var_dict, headers)
+
+def write_json_into_kafka(json_data, topic, producer, addr, var_dict = {'jumbo_topic':'default'}):
+    try:
+        if var_dict['jumbo_topic'] != 'default':
+            topic = var_dict['jumbo_topic']
+        json_data=json_data.replace("'",'"').strip('[]')
+        future = producer.send(topic, key=addr, value=json_data)
+#        record_metadata = future.get(timeout=10)
+#        logger.info("Successfully written into kafka : topic=%s partition=%d offset=%d json_data=%s" % (record_metadata.topic, record_metadata.partition,
+#                                      record_metadata.offset, json_data))
+    except Exception as e:
+        error_string = str(e)
+        index = error_string.find('Timeout')
+        if index > -1:
+            logger.critical("Kafka Timeout error ")
+
+
+def form_json_data(measurement, tags, time, value, exporter, addr, node_type, label_dict):
+    tags_dict ={}
+    ip_addr = 'localhost'
+    if tags!='no_tag':
+        tags = tags.strip('{}')
+        tag_list = tags.split('",')
+        for item in tag_list:
+            item = item.split('=')
+            tags_dict[item[0]] = item[1].strip('"')
+    #logger.warning('node type' + node_type)
+    if node_type=='master':
+        match = re.search('([0-9\.]+):[0-9]+', addr)
+        if match is not None:
+            ip_addr = match.group(1)
+            topic = ip_addr+'_metrics'
+    elif node_type=='worker':
+        ip_addr = server_ip
+        topic = ip_addr + '_metrics'
+    labels = label_dict[ip_addr]
+    labels_list = labels.split('",')
+    for item in labels_list:
+        item = item.split('":')
+        tags_dict[item[0].strip('"')] = item[1].strip('"')
+
+    tags_dict["ipaddr"] = addr.strip('"')
+    tags_dict["exporter"] = exporter
+    #tags_dict["serverIP"] = server_ip
+    fields = {"value": value}
+    json_body = [{
+        "measurement": measurement,
+        "tags": tags_dict,
+        "time": time,
+        "fields": fields
+    }]
+    #print json_bodyi
+    return str(json_body), topic
+
+
+
+#############################################################################
+restServer.py
+#########################################################################
+#############################################################################################
+# File Name        : platform-analytics/platform_analytics/prometheus_exporter/restServer.py
+# Description      : Connects to kafka and starts prometheus exporter metrics collection
+# Owner            : Cyril James
+#
+# Revision history :
+#
+# 00 Cyril James           - File Created.
+# 01 Anoop Muraleedharan   - TBVR-802 - Monitoring Probe should be updated to
+#                            connect to the kafka after timeout.
+# 02 Anoop Muraleedharan   - update_inventory_version imported from version as part of the
+#                            changes done for TTK-151
+##############################################################################################
+from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
+from threading import Thread
+from restServer_config import server_ip, server_port, exporter_dict, secureConnectionToKafka, zipkin_transport, setHttpServerPollingInterval
+from exporter_parser import create_exporter_dict, collect_exporter_metrics, \
+    update_dns_info, update_polling_interval, update_node_labels, update_onos_events, remove_exporter
+from version import update_inventory_version
+#import sys,os
+import time
+import random
+#sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
+
+#from platform_analytics.all_metrics import logger
+
+from parse_url import logger, ConnectToKafka, create_zipkin_kafka_producer
+
+event_acknowledgement = False
+#event_acknowledgement for publishing acknowledged events with fire and forget.
+
+class Rest_Server(BaseHTTPRequestHandler):
+    def _set_headers(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+
+    def do_GET(self):
+        if self.path == "/exporterinfo":
+            self._set_headers()
+            self.wfile.write(str(exporter_dict))
+
+    def do_HEAD(self):
+        self._set_headers()
+
+    def do_POST(self):
+        self._set_headers()
+        self.wfile.write("<html><body><h1>Received json data</h1></body></html>")
+        content_len = int(self.headers.getheader('content-length', 0))
+        post_body = self.rfile.read(content_len)
+        if self.path == "/dnsinfo":
+            logger.warning('Received dns info' + str(post_body))
+            update_dns_info(post_body)
+        elif self.path == "/scrapeinterval":
+            logger.warning('Received scrape interval' + str(post_body))
+            update_polling_interval(post_body)
+        elif self.path == "/labels":
+            logger.warning('Received labels' + str(post_body))
+            update_node_labels(post_body)
+        elif self.path == "/updateinventoryversion":
+            logger.warning('Updating inventory version')
+            update_inventory_version()
+        elif self.path == "/onosevents":
+            logger.warning('Received onos events info ' + str(post_body))
+            update_onos_events(post_body, secureConnectionToKafka)
+        elif self.path == "/removeexporter":
+            logger.warning('Received remove exporter info ' + str(post_body))
+            remove_exporter(post_body)
+        else:
+            logger.warning('Received exporter info ' + str(post_body))
+            create_exporter_dict(post_body)
+
+def run(server_class=HTTPServer, handler_class=Rest_Server, port=server_port):
+    server_address = (server_ip, port)
+    httpd = server_class(server_address, handler_class)
+    logger.warning('Starting rest Server...')
+    if setHttpServerPollingInterval is True:
+        httpd.serve_forever(0.2)
+    else:
+        httpd.serve_forever()
+
+
+def start_prom_collector(producer):
+    thread = Thread(target=collect_exporter_metrics, args=(producer, ))
+    thread.daemon = True
+    thread.start()
+    return thread
+
+def start_rest_server():
+    thread = Thread(target=run, args=( ))
+    thread.daemon = True
+    thread.start()
+    return thread
+
+if __name__ == "__main__":
+    thread1 = start_rest_server()
+    connectionFaliurecount = 0
+    while connectionFaliurecount < 100:
+        producer=ConnectToKafka()
+        if producer is False:
+            connectionFaliurecount = connectionFaliurecount + 1
+            time.sleep(15)
+        else:
+            break
+    #When initial retry attempts exceeds, retry after a random time interval till
+    #connection succeeds.
+    if producer is False:
+        logger.warning('Initial retry attempts exceeded. Will retry after sometime')
+        while True:
+            producer=ConnectToKafka()
+            if producer is False:
+                retrydelay = random.randint(60,900)
+                logger.warning('Wait for ' + str(retrydelay) + ' seconds before next retry')
+                time.sleep(retrydelay)
+            else:
+                break
+    logger.warning('Successfully connected to Kafka')
+    if zipkin_transport == 'kafka':
+        create_zipkin_kafka_producer()
+    logger.warning('Starting prometheus exporter metrics collection')
+    thread2 = start_prom_collector(producer)
+    thread1.join()
+    thread2.join()
+
+##########################################################################################################
+exporter_parser.py
+############################################################################################################
+
+#########################################################################################
+# File Name        : platform-analytics/platform_analytics/prometheus_exporter/
+#                    exporter_parser.py
+# Description      : Collects metrics from exporter. Also holds restAPIs for onos_events,
+#                    update polling interval, node labels etc.
+# Owner            : Cyril James
+#
+# Revision history :
+#
+# 00 Cyril James   - File Created.
+# 01 Anoop Muraleedharan - TTK-151: Moved code for collecting software version details
+#                          from this file to version.py.
+##########################################################################################
+from restServer_config import exporter_dict, server_ip, time_format, polling_interval,\
+    secureConnectionToKafka
+import re
+import urllib2
+import ssl
+import paramiko
+import json
+import time
+from time import sleep
+from parse_url import parse_url_data, logger, ConnectToKafka_SSL, ConnectToKafka_PLAINTEXT, zipkin_transport_handler
+from datetime import datetime
+from threading import Thread
+from py_zipkin.zipkin import zipkin_span, create_http_headers_for_new_span, ZipkinAttrs
+
+from redis.sentinel import Sentinel
+from restServer_config import kafka_ip_address, kafka_plaintext_port, kafka_ssl_port, kafka_onos_key
+from Inventory_config import redis_sentinel_ip, redis_sentinel_port
+
+#import sys,os
+#sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
+
+#from platform_analytics.all_metrics import logger
+node_type = 'worker'
+label_dict = {}
+var_dict = {}
+
+def update_onos_events(onos_data, secureConnectionToKafka):
+    site_name = 'default'
+    cluster_name = 'default'
+#    ppod_id = 'default'
+    labels = label_dict.values()[0]
+    topicReceived = False
+    sitenameReceived = False
+    clusternameReceived = False
+
+    match = re.search('"TOPIC":"([a-zA-Z0-9._-]+)"', onos_data)
+    if match is not None:
+        topic = match.group(1)
+        topicReceived = True
+    else:
+        logger.warning('Topic not received')
+
+    match = re.search('"SITE_NAME":"([a-zA-Z0-9._-]+)"', onos_data)
+    if match is not None:
+        sitenameReceived = True
+    else:
+        logger.warning('Site name not received')
+
+    match = re.search('"CLUSTER_NAME":"([a-zA-Z0-9._-]+)"', onos_data)
+    if match is not None:
+        clusternameReceived = True
+    else:
+        logger.warning('Cluster name not received')
+
+
+    match = re.search('"site_name":"([a-zA-Z0-9._-]+)"', labels)
+    if match is not None:
+        site_name = match.group(1)
+    else:
+        logger.error('Unable to fetch site name' + labels)
+
+    match = re.search('"cluster_name":"([a-zA-Z0-9._-]+)"', labels)
+    if match is not None:
+        cluster_name = match.group(1)
+    else:
+        logger.error('Unable to fetch cluster name' + labels)
+
+    if topicReceived is False:
+        topic = site_name + '_infra_events'
+
+    if sitenameReceived == False and clusternameReceived == True:
+        add_data = '{"SITE_NAME":"'+site_name+'",'
+        onos_data = re.sub('^{', add_data, onos_data)
+    elif sitenameReceived == True and clusternameReceived == False:
+        add_data = '{"CLUSTER_NAME":"'+cluster_name+'",'
+        onos_data = re.sub('^{', add_data, onos_data)
+
+    elif sitenameReceived == False and clusternameReceived == False:
+        add_data = '{"SITE_NAME":"'+site_name+'","CLUSTER_NAME":"'+cluster_name+'",'
+        onos_data = re.sub('^{', add_data, onos_data)
+
+    if secureConnectionToKafka == True:
+        producer_onos = ConnectToKafka_SSL()
+    else:
+        producer_onos = ConnectToKafka_PLAINTEXT()
+    if producer_onos is not False:
+        logger.warning('Posting ONOS events info to kafka topic : '+topic)
+        future = producer_onos.send(topic, key=kafka_onos_key, value=onos_data)
+        producer_onos.close()
+
+#Currently not getting data from redis
+def get_data_from_redis(key):
+    sentinel = Sentinel([(redis_sentinel_ip, redis_sentinel_port)], socket_timeout=0.1)
+    sentinel.discover_master('mymaster')
+    master = sentinel.master_for('mymaster', socket_timeout=0.1)
+    data = master.get(key)
+    try:
+        return json.loads(data)
+    except Exception as e:
+        logger.warning('Unable to parse data received from redis: ' + str(e))
+        return False
+
+def update_node_labels(label_json):
+    global node_type
+    global label_dict
+    global var_dict
+    match = re.search('^{\"type\":\"([a-zA-Z\-_0-9]+)\",\"labels\":([a-zA-Z0-9-_:{\.\"\/,]+})', label_json)
+    if match is not None:
+        node_type = match.group(1)
+        logger.warning('node type updated:' + node_type)
+        labels = match.group(2)
+        labelMatch = re.search('{\"([0-9\.]+)\":{(\"[a-zA-Z0-9-_:{\.\"\/,]+)}', labels)
+        if labelMatch is not None:
+            label_dict[labelMatch.group(1)] = labelMatch.group(2)
+    logger.warning('Updated labels' + str(label_dict))
+    labels = label_dict.values()[0]
+    match = re.search('"cluster_name":"([a-zA-Z0-9._-]+)"', labels)
+    if match is not None:
+        var_dict['Cluster_Name'] = match.group(1)
+    else:
+        logger.error('Unable to fetch cluster name' + labels)
+    match = re.search('"jumbo_topic":"([a-zA-Z0-9._-]+)"', label_json)
+    if match is not None:
+        var_dict['jumbo_topic'] = match.group(1)
+    else:
+        var_dict['jumbo_topic'] = 'default'
+        logger.warning('Unable to fetch Jumbo topic, setting to default' + labels)
+
+
+#get_node_type: Returns node_type
+def get_node_type():
+    return node_type
+
+def update_polling_interval(interval_json):
+    global polling_interval
+    match = re.search('{\"scrapeinterval":"([0-9]+)\"}', interval_json)
+    if match is not None:
+        time = match.group(1)
+        polling_interval = int(time)
+        logger.info('Updated polling interval' + str(polling_interval))
+
+def update_dns_info(dns_json):
+    match = re.search('{\"search":"([0-9a-zA-Z.\s\-_\:]+)\",\"nameserver\":\"([0-9.]+)\",\"options\":\"([a-zA-Z\:0-9_\-\.]+)\"}', dns_json)
+    if match is not None:
+        search = match.group(1)
+        nameserver = match.group(2)
+        options = match.group(3)
+        dnscontent = 'search '+search+'\nnameserver '+nameserver+'\noptions '+options
+        file_obj=open('/etc/resolv.conf', 'w')
+        file_obj.write(dnscontent)
+        file_obj.close()
+        logger.info('Updated dns info' + str(dnscontent))
+
+def create_exporter_dict(exporter_json):
+    match = re.search("{\"([a-zA-Z-]+)\":(\[[0-9\".:,]+\]),\"[a-zA-Z_]+\":\"([0-9.]+)\"}", exporter_json)
+    if match is not None:
+        exporter=match.group(1)
+        addr_list=match.group(2)
+        node_ip=match.group(3)
+        #if node_ip == server_ip:
+        exporter_dict[exporter]=addr_list
+        logger.info('Updated exporter database '+str(exporter_dict))
+
+def remove_exporter(exporter_json):
+    match = re.search("{\"exporter_name\":\"([a-zA-Z_-]+)\"}", exporter_json)
+    if match is not None:
+        exporter=match.group(1)
+        exporter_dict.pop(exporter, None)
+        logger.warning('Removed exporter '+exporter+' from exporter_dict')
+def url_processing_thread(exporter, item, producer, node_type, label_dict, var_dict, headers):
+    data,time = read_exporter_content(item, exporter)
+    if data is not False and time is not False:
+        parse_url_data(data, time, exporter, item, producer,node_type, label_dict, var_dict, headers)
+
+def parse_url_thread(exporter, item, producer, node_type, label_dict, var_dict, headers):
+    thread = Thread(target=url_processing_thread, args=(exporter, item, producer,node_type, label_dict, var_dict, headers,   ))
+    thread.daemon = True
+    thread.start()
+
+
+def read_kubernetes_metrics(url):
+   ctx = ssl.create_default_context()
+   ctx.check_hostname = False
+   ctx.verify_mode = ssl.CERT_NONE
+
+   data=urllib2.urlopen(url, context=ctx).readlines()
+   return data
+
+
+def read_exporter_content(item, exporter):
+    item=item.strip('"')
+    url='http://'+item+'/metrics'
+    time = datetime.now().strftime(time_format)
+    try:
+        if exporter=='kubernetes':
+            url = 'https://' + item + '/metrics'
+            data=read_kubernetes_metrics(url)
+        else:
+            data=urllib2.urlopen(url).readlines()
+    except Exception as e:
+        logger.warning('Unable to read url '+str(e)+url)
+        return False, False
+
+    logger.info('Successfully read url data at '+ url+'time: '+str(time))
+    return data, time
+
+def start_metrics_collection(producer, exporter,item):
+    with zipkin_span(
+        service_name=var_dict['Cluster_Name']+'-monitoring-probe-'+exporter+'-'+item.strip('"'),
+        span_name='read-exporter-content',
+        transport_handler=zipkin_transport_handler,
+        port=6000,
+        sample_rate=100, #0.05, # Value between 0.0 and 100.0
+    ):
+        headers = create_http_headers_for_new_span()
+        parse_url_thread(exporter, item, producer, node_type, label_dict, var_dict, headers)
+
+
+
+def collect_exporter_metrics(producer):
+    global label_dict
+    while not label_dict:
+        logger.warning('Labels not received from PMA, holding off metrics-collection')
+        sleep(1)
+    logger.warning('Labels received from PMA, Starting metrics-collection')
+    while True:
+        start_time = time.time()
+        for exporter in exporter_dict.keys():
+            addr = str(exporter_dict[exporter])
+            addr = addr.strip('[]')
+            addr_list = addr.split(',')
+            for item in addr_list:
+                start_metrics_collection(producer, exporter, item)
+        curr_time = time.time()
+        while curr_time - start_time < polling_interval:
+            sleep(0.5)
+            curr_time = time.time()
+
+#############################################################################

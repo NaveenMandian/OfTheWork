@@ -1,0 +1,71 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: collectd-ds
+spec:
+  selector:
+    matchLabels:
+      app: collectd
+  template:
+    metadata:
+      name: collectd
+      labels:
+        app: collectd
+    spec:
+      tolerations:
+      - key: "cmk"
+        operator: "Exists"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: {{ PPOD_label if version == '2.0' else 'cluster_name' }}
+                operator: In
+                values:
+                - "{{ PPOD_name if version == '2.0' else K8s_cluster_name }}"
+      hostNetwork: true
+      imagePullSecrets:
+      - name: nexus-docker-secret
+      containers:
+
+      - name: collectd
+        image: {{ docker_repo }}:{{ docker_repo_port }}/collectd:maryam_master-s27.0
+        securityContext:
+          privileged: true
+        env:
+        - name: NODE_IP
+          valueFrom:
+             fieldRef:
+               fieldPath : spec.nodeName
+        ports:
+        - containerPort: 25826
+          hostPort: 25826
+        volumeMounts:
+        - mountPath: /dev/cpu
+          name: dev-cpu
+      - name: collectd-exporter
+        image: {{ docker_repo }}:{{ docker_repo_port }}/prom/collectd-exporter:0.3.1
+        securityContext:
+          privileged: true
+        args: ["-collectd.listen-address=:25826"]
+        ports:
+        - containerPort: 9103
+          hostPort: 9103
+
+
+      volumes:
+
+      - name: dev-cpu
+        hostPath:
+          path: /dev/cpu
+
+      - name: cert
+        secret:
+          secretName: kafka-cert
+      - name: config
+        configMap:
+          name: kafka-conf
+      - name: ssh-mount
+        hostPath:
+          path: /home/ubuntu/.ssh

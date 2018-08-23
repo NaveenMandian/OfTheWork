@@ -1,0 +1,108 @@
+############################### Kubernetes ##################################################
+Documentation and Tutorials :
+
+https://rinormaloku.com/series/kubernetes-and-everything-else/
+https://medium.freecodecamp.org/learn-kubernetes-in-under-3-hours-a-detailed-guide-to-orchestrating-containers-114ff420e882
+https://github.com/topics/kubernetes
+https://kubernetes.io/docs/tutorials/
+https://kubernetes.io/docs/concepts/
+
+--###### Docker Commands
+
+$ docker save -o fedora-all.tar fedora
+docker save -o fedora-latest.tar fedora:latest
+docker save --output busybox.tar busybox
+$ sudo docker load --input ~/metrics-collector/metrics_collector.tar
+$ sudo docker tag 151abc45aa3a 96.115.240.58:9001/metrics-collector:17.0-s55
+$ sudo docker images
+$ sudo docker rmi 151abc45aa3a
+
+------------------
+~$ kubectl get nodes
+NAME           STATUS    ROLES     AGE       VERSION
+96.112.167.5   Ready     <none>    20h       v1.9.6
+96.112.167.6   Ready     <none>    20h       v1.9.6
+96.112.167.7   Ready     <none>    20h       v1.9.6
+-----------------------------------------
+
+kubectl get pods -o wide   ---------------getting ip and ports(check yaml file) of monitoring probe.
+
+monitoring-probe-ds-dv9m8                         5/5       Running            0          23s       96.112.167.6   96.112.167.6
+monitoring-probe-ds-kw4tc                         4/5       ImagePullBackOff   0          23s       96.112.167.7   96.112.167.7
+monitoring-probe-ds-tlwb9                         4/5       ImagePullBackOff   0          23s       96.112.167.5   96.112.167.5
+
+--------------------------------------------------------------------
+-- listing all containers
+ kubectl get --all-namespaces --selector k8s-app=kube-dns --output json pods \
+  | monitoring-probe-ds-9pw84 --raw-output '.items[].spec.containers[].name'
+  
+  
+  --Logs checking
+-- $ kubectl logs <pod name>    # Bad command lists all containers
+---------------------------------------------------------------------------------
+-- kubectl logs <mp> metrics-collector | grep "phrase I want to find"  
+
+-------------------------------------------------------------------------------
+$ sudo kubectl delete -f config-map/telemetry-configmap.yaml
+configmap "telemetry-configmap" deleted
+
+$ sudo kubectl create -f config-map/telemetry-configmap.yaml
+configmap "telemetry-configmap" created
+--------------------------------------------------------------------------------------
+Required Output :
+$ curl -H "Content-Type: application/json" --data @~/naveen_b07/body.json 96.112.167.7:9080/onosevents
+
+$ curl -H "Content-Type: application/json" --data @~/naveen_b07/body.json 96.112.167.7:9080/onoseventsack
+
+$ curl -H "Content-Type: application/json" --data @~/naveen_b07/body.json 96.112.167.6:9080/onoseventsack
+
+ubuntu@kube-master-4:/opt/platform/Cluster1/cppod/kubernetes$ curl -H "Content-Type: application/json" --data @~/naveen_b07/body.json 96.112.167.6:9080/onoseventsack
+Warning: Couldn't read data from file "~/naveen_b07/body.json", this makes an
+Warning: empty POST.
+<html><body><h1>Received json data</h1></body></html>ubuntu@kube-master-4:/opt/platform/Cluster1/cppod/kubernetes$
+
+------------------------------------------------------------------------------------------------------------------------
+
+Concepts :
+
+To work with Kubernetes -> you use Kubernetes API objects to describe cluster's desired state, what applications and other workloads
+you want to run, what container images they use, the number of replicas, what network and disk resources you want to make available,
+ and more.
+ You set your desired state by creating objects using the Kubernetes API, typically via the command-line interface, kubectl. 
+ You can also use the Kubernetes API directly to interact with the cluster and set or modify your desired state.
+ 
+ the Kubernetes Control Plane works to make the cluster’s current state match the desired state. To do so, Kubernetes performs a 
+ variety of tasks automatically–such as starting or restarting containers,
+ scaling the number of replicas of a given application, and more. The Kubernetes Control Plane consists of a collection of processes 
+ running on your cluster:
+ 
+ The Kubernetes Master is a collection of three processes that run on a single node in your cluster, which is designated as the master node. 
+ Those processes are: 1-kube-apiserver, 2-kube-controller-manager and 3-kube-scheduler.(Master Node)
+
+ Each individual non-master node in your cluster runs two processes: Non-Master Node
+- 1)kubelet, which communicates with the Kubernetes Master.
+- 2)kube-proxy, a network proxy which reflects Kubernetes networking services on each node.
+
+Kubernetes Objects :
+
+Kubernetes contains a number of abstractions that represent the state of your system: deployed containerized applications and workloads, 
+their associated network and disk resources, and other information about what your cluster is doing. 
+These abstractions are represented by objects in the Kubernetes API; see the Kubernetes Objects overview for more details.
+
+The basic Kubernetes objects include:
+
+Pod
+Service
+Volume
+Namespace
+
+In addition, Kubernetes contains a number of higher-level abstractions called Controllers. 
+Controllers build upon the basic objects, and provide additional functionality and convenience features. They include:
+
+ReplicaSet
+Deployment
+StatefulSet
+DaemonSet
+Job
+
+

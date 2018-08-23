@@ -1,0 +1,210 @@
+^^^^^ #### Docker  -- Build, Ship, and Run any app anywhere.(iOW - Develop, Deploy and Run inside containers)
+
+
+CNCF - Cloud Native Computing Foundation. - All related technologies.
+https://landscape.cncf.io/
+--- Docs and Tutorials :
+
+https://docs.docker.com/get-started/
+https://docs.docker.com/engine/docker-overview/
+https://docs.docker.com/develop/
+https://docs.docker.com/develop/sdk/
+https://docs.docker.com/network/
+https://docs.docker.com/storage/
+https://docs.docker.com/config/labels-custom-metadata/
+
+
+Docker is a platform for developers and sysadmins to develop, deploy, and run applications with containers. 
+The use of Linux containers to deploy applications is called containerization. 
+Containers are not new, but their use for easily deploying applications is.
+
+^^^ Containerization is increasingly popular because containers are:
+
+
+Flexible: Even the most complex applications can be containerized.
+Lightweight: Containers leverage and share the host kernel.
+Interchangeable: You can deploy updates and upgrades on-the-fly.
+Portable: You can build locally, deploy to the cloud, and run anywhere.
+Scalable: You can increase and automatically distribute container replicas.
+Stackable: You can stack services vertically and on-the-fly.
+
+
+^^^^ ##### Image
+
+A container is launched by running an image. An image is an executable package that includes 
+everything needed to run an application--the code, a runtime, libraries, environment variables, 
+and configuration files. 
+
+^^^^^^ ####### Container
+
+A container is a runtime instance of an image--what the image becomes in memory when executed 
+(that is, an image with state, or a user process). 
+You can see a list of your running containers with the command, docker ps, just as you would in Linux.
+
+docker ps       ## List of running containers
+
+^^^^ ########## Containers and Virtual Machines ###############
+
+A container runs natively on Linux and shares the kernel of the host machine with other containers. 
+It runs a discrete process, taking no more memory than any other executable, making it lightweight.
+
+By contrast, a virtual machine (VM) runs a full-blown “guest” operating system with virtual access
+ to host resources through a hypervisor. In general, VMs provide an environment
+ with more resources than most applications need.
+ 
+^^^^ ####################### About Docker CE :
+
+Docker Community Edition (CE) is ideal for developers and small teams 
+looking to get started with Docker and experimenting with container-based apps. 
+Docker CE has two update channels, stable and edge:
+
+Stable gives you reliable updates every quarter.
+Edge gives you new features every month.
+
+^^^ ### Docker Details
+
+docker --version
+docker info 
+docker version            ### Docker Details
+
+^^^ ### Using Docker commands without sudo - add user to a docker group
+
+The docker daemon binds to a Unix socket instead of a TCP port. By default that Unix socket 
+is owned by the user root and other users can only access it using sudo. 
+The docker daemon always runs as the root user.
+If you don’t want to use sudo when you use the docker command, 
+create a Unix group called docker and add users to it. When the docker daemon starts, 
+it makes the ownership of the Unix socket read/writable by the docker group.
+
+^ Create the docker group.
+$ sudo groupadd docker
+
+^ Add your user to the docker group
+$ sudo usermod -aG docker $USER
+
+^ Log out and log back in so that your group membership is re-evaluated.
+
+^ Verify that you can run docker commands without sudo
+$ docker run hello-world
+
+#####
+docker run hello-world  # Verify
+
+docker image ls    # List the images
+
+docker container ls --all      # will list even the containers which are exited.
+
+
+^^^ ### Docker Orientation recap and Cheat Sheet
+
+## List Docker CLI commands
+docker
+docker container --help
+
+## Display Docker version and info
+docker --version
+docker version
+docker info
+
+## Execute Docker image
+docker run hello-world
+
+## List Docker images
+docker image ls
+
+## List Docker containers (running, all, all in quiet mode)
+docker container ls
+docker container ls --all
+docker container ls -aq
+
+#####################################--------------------------------------------------------
+
+
+
+#########################################Dockers########################################
+
+2013 - Open Source project company - dotCloud - became Docker,Inc
+
+90's - Mainframes - PC
+2000's - Baremetal to Virtualization
+10's - 2007-08 AWS Solution - Datacentre's to Cloud
+Host to Container(Serverless)
+
+trivia - Docker Logo - MobyDock. 
+but its not their mascot.
+Their mascot is Gordon - real life turtle which happens to live in San Francisco, couple of weeks in Docker HeadQuarters.
+He has his own twitter account @gordonTheTurtle.
+
+All these changes have always been about Speed,
+Speed of Deployment, Speed of Business, Speed of doing things, Develop faster.
+
+Containers are consistent across OS, are packaged the same way.
+
+
+Maintenance and Complexity drains budget, So Innovation suffers.
+80% - Maintenance
+20% - Innovation.
+
+Installing Docker on Linux :
+Actually there are 3 ways to install
+
+1. Through Script.
+
+curl -sSL https://get.docker.com/ | sh
+
+---- store.docker.com has instructions for each distro
+
+mainly it comes down to debian based distro and Fedora | Red_Hat based distro.
+i.e, YUM package manager and APT package manager.( they cover 95% of use cases in Linux)
+
+RHEL officially only supports Docker EE(paid) | But CentOS will work.
+ --- May not work for unlisted distros - such as Amazon Linux, Linode Linux, etc 
+ 
+ --- Recommendation : Don't use pre-installed setups such as Digital Ocean, Linode, etc.
+ 
+ 
+Docker Linux Setup :
+
+1. First update the package manager and Install Docker
+
+2. add your user to docker group, so that sudo is not required.
+
+Latest Edge release --
+
+1. $ curl -fsSL get.docker.com -o get-docker.sh
+2. $ sh get-docker.sh
+
+
+sudo usermod -aG docker bret         --- no need to use sudo for docker commands
+FYI : But this does not work on RHEL, CentOS, Fedora
+
+
+####
+Then you have to install Docker Machine and Docker Compose, in Windows and Mac it takes care by itself, but in Linux 
+you have get yours hands little dirty.
+
+Each one is a single binary, you can get it on Docker Documentation.
+
+$ docker-machine version
+
+$ docker-compose version
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
